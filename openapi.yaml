@@ -1,0 +1,354 @@
+openapi: 3.0.3
+info:
+  title: Kita Navigator Berlin API
+  description: API for searching daycare centers (Kitas) in Berlin
+  version: 1.0.0
+  contact:
+    name: Kita Navigator Berlin
+    url: https://kita-navigator.berlin.de
+
+servers:
+  - url: https://kita-navigator.berlin.de/api/v1
+    description: Production server - Kita search API
+  - url: https://kita-navigator.berlin.de/merkliste/api/v1
+    description: Production server - Watchlist API (requires authentication)
+
+paths:
+  /kitas/namensucheAnzahl:
+    get:
+      summary: Get total count of Kitas matching search criteria
+      description: Returns the total number of daycare centers matching the search query
+      operationId: getKitaCount
+      tags:
+        - Kitas
+      parameters:
+        - name: einfacheSuche
+          in: query
+          description: Whether to use simple search mode
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: name
+          in: query
+          description: Name search query (* for all Kitas)
+          required: true
+          schema:
+            type: string
+            example: "*"
+      responses:
+        '200':
+          description: Successful response with count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KitaCountResponse'
+              example:
+                amount: 2856
+
+  /kitas/namensuche:
+    get:
+      summary: Search for Kitas with pagination
+      description: Returns a paginated list of daycare centers matching the search criteria
+      operationId: searchKitas
+      tags:
+        - Kitas
+      parameters:
+        - name: betb
+          in: query
+          description: Care start date in MM-YYYY format
+          required: false
+          schema:
+            type: string
+            pattern: '^\d{2}-\d{4}$'
+            example: "10-2025"
+        - name: einfacheSuche
+          in: query
+          description: Whether to use simple search mode
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: name
+          in: query
+          description: Name search query (* for all Kitas)
+          required: true
+          schema:
+            type: string
+            example: "*"
+        - name: seite
+          in: query
+          description: Page number (0-indexed)
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+            example: 0
+        - name: max
+          in: query
+          description: Maximum number of results per page
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            example: 12
+      responses:
+        '200':
+          description: Successful response with paginated Kita list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KitaSearchResponse'
+
+  /merklisteneintraege/filter:
+    get:
+      summary: Get watchlist entries by IDs
+      description: Retrieve watchlist/favorites entries for specific Kita IDs. Requires authentication via session cookies.
+      operationId: getWatchlistEntries
+      tags:
+        - Watchlist
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: ids
+          in: query
+          description: Comma-separated list of Kita IDs
+          required: true
+          schema:
+            type: string
+            example: "2192,3082474,2032,2420"
+          style: form
+          explode: false
+      responses:
+        '200':
+          description: Successful response with watchlist entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MerklistenEintrag'
+        '403':
+          description: Forbidden - Authentication required or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: "2025-11-08T10:22:41.863+00:00"
+                status: 403
+                error: "Forbidden"
+                path: "/merkliste/api/v1/merklisteneintraege/filter"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: device
+      description: Session authentication using device cookie
+  schemas:
+    KitaCountResponse:
+      type: object
+      required:
+        - amount
+      properties:
+        amount:
+          type: integer
+          description: Total number of Kitas matching the search criteria
+          example: 2856
+
+    KitaSearchResponse:
+      type: object
+      required:
+        - metainformation
+        - einrichtungen
+      properties:
+        metainformation:
+          $ref: '#/components/schemas/Metainformation'
+        einrichtungen:
+          type: array
+          description: List of daycare centers (Kitas)
+          items:
+            $ref: '#/components/schemas/Einrichtung'
+
+    Metainformation:
+      type: object
+      required:
+        - anzahlSeiten
+        - seite
+        - anzahlErgebnisse
+      properties:
+        anzahlSeiten:
+          type: integer
+          description: Total number of pages
+          example: 238
+        seite:
+          type: integer
+          description: Current page number (0-indexed)
+          example: 0
+        anzahlErgebnisse:
+          type: integer
+          description: Total number of results
+          example: 2856
+
+    Einrichtung:
+      type: object
+      required:
+        - id
+        - name
+        - nummer
+        - geokoordinate
+        - vorschaubild
+        - adresse
+        - freiplatzstatus
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the Kita
+          example: 2192
+        name:
+          type: string
+          description: Name of the Kita
+          example: "St. Konrad von Parzham"
+        nummer:
+          type: string
+          description: Registration number of the Kita
+          example: "11220630"
+        geokoordinate:
+          $ref: '#/components/schemas/Geokoordinate'
+        vorschaubild:
+          $ref: '#/components/schemas/Vorschaubild'
+        adresse:
+          $ref: '#/components/schemas/Adresse'
+        freiplatzstatus:
+          type: array
+          description: Availability status for future months
+          items:
+            $ref: '#/components/schemas/Freiplatzstatus'
+
+    Geokoordinate:
+      type: object
+      required:
+        - lon
+        - lat
+      properties:
+        lon:
+          type: number
+          format: double
+          description: Longitude coordinate
+          example: 13.555330269752426
+        lat:
+          type: number
+          format: double
+          description: Latitude coordinate
+          example: 52.57057711746215
+        entfernung:
+          type: number
+          format: double
+          nullable: true
+          description: Distance in kilometers (if location-based search is used)
+          example: null
+
+    Vorschaubild:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          description: URL path to the preview image
+          example: "/fallback_einrichtung_vorschau.jpg"
+
+    Adresse:
+      type: object
+      required:
+        - strasse
+        - hausnummer
+        - plz
+        - ort
+      properties:
+        strasse:
+          type: string
+          description: Street name
+          example: "Ahrensfelder Chaussee"
+        hausnummer:
+          type: string
+          description: House number
+          example: "79"
+        plz:
+          type: string
+          description: Postal code
+          pattern: '^\d{5}$'
+          example: "13057"
+        ort:
+          type: string
+          description: City
+          example: "Berlin"
+
+    Freiplatzstatus:
+      type: object
+      required:
+        - gueltigAb
+        - plaetzeVerfuegbar
+      properties:
+        gueltigAb:
+          type: string
+          format: date
+          description: Date from which the availability status is valid (YYYY-MM-DD)
+          example: "2025-11-01"
+        plaetzeVerfuegbar:
+          type: boolean
+          description: Whether places are available
+          example: true
+
+    MerklistenEintrag:
+      type: object
+      description: A watchlist entry for a Kita
+      properties:
+        einrichtungId:
+          type: integer
+          description: The Kita ID
+          example: 2192
+        hinzugefuegtAm:
+          type: string
+          format: date-time
+          description: Timestamp when added to watchlist
+          example: "2025-11-08T10:00:00.000+00:00"
+
+    ErrorResponse:
+      type: object
+      required:
+        - timestamp
+        - status
+        - error
+        - path
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the error occurred
+          example: "2025-11-08T10:22:41.863+00:00"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 403
+        error:
+          type: string
+          description: Error type
+          example: "Forbidden"
+        path:
+          type: string
+          description: Request path that caused the error
+          example: "/merkliste/api/v1/merklisteneintraege/filter"
+        message:
+          type: string
+          description: Optional error message
+          example: "Access denied"
+
+tags:
+  - name: Kitas
+    description: Operations related to daycare center (Kita) search
+  - name: Watchlist
+    description: Operations for managing favorite Kitas (requires authentication)
