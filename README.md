@@ -1,7 +1,5 @@
 # Kita Navigator Berlin API
 
-> Unofficial OpenAPI 3.0 specification for searching daycare centers (Kitas) in Berlin.
-
 **Last Updated:** 08. November 2025
 
 ## Overview
