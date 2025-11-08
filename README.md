@@ -87,3 +87,4 @@ This is an unofficial API specification for the Kita Navigator Berlin service. T
 
 - [Kita Navigator Berlin](https://kita-navigator.berlin.de/)
 - [Berlin Open Data Portal](https://daten.berlin.de/)
+- [jedeschule-scraper](https://jedeschule.codefor.de/) - Scrapers for German school data across all federal states (including Berlin schools) with unified format and API
